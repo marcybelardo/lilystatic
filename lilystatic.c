@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -9,8 +10,13 @@
 static const char pkg_name[] = "lilystatic";
 static const char version[] = "0.0.1";
 
-/* static char *router_dir_name = "./pages"; */
-/* static char *templates_dir_name = "./templates"; */
+enum LS_FILEKIND {
+	LS_REG,
+	LS_DIR
+};
+
+// static char *router_dir_name = "./pages";
+// static char *templates_dir_name = "./templates";
 
 /*
  * How we're structuring Lilystatic:
@@ -29,6 +35,48 @@ static const char version[] = "0.0.1";
  *     - For a given router root ("./pages"), we must load the page from within
  *     - the router root is a directory, a directory contains files or other directories
  */
+
+struct ls_reg {
+	char *name;
+	char *contents;
+};
+
+struct ls_file {
+	struct ls_file *next;
+	union {
+		struct ls_reg *f;
+		char *dirname;
+	} inner;
+};
+
+struct ls_dir {
+	struct ls_file *head;
+};
+
+char *ls_reg_read_file(char *name)
+{
+	return NULL;
+}
+
+struct ls_dir *ls_dir_init(void)
+{
+	struct ls_dir *new_dir = malloc(sizeof(struct ls_dir));
+	new_dir->head = NULL;
+
+	return new_dir;
+}
+
+void ls_dir_append(struct ls_dir *dir, char *name, int is_dir)
+{
+	struct ls_file *cur;
+	for (cur = dir->head; cur; cur = cur->next);
+	if (is_dir == LS_DIR) {
+		cur->inner.dirname = name;
+	} else {
+		cur->inner.f->name = name;
+		cur->inner.f->contents = ls_reg_read_file(name);
+	}
+}
 
 static void walk_dir(char *name)
 {
@@ -67,8 +115,8 @@ int main(int argc, char *argv[])
 {
 	if (argc != 2) {
 		fprintf(stderr, "%s v%s\n"
-				"\tUSAGE: %s [dirname]",
-				pkg_name, version, pkg_name);
+				"USAGE: %s [dirname]",
+				pkg_name, version, argv[0]);
 		return 1;
 	}
 	char *name = argv[1];
