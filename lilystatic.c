@@ -37,16 +37,13 @@ static const char version[] = "0.0.1";
 
 static char *ls_file_read(char *fname)
 {
-	char *buf = malloc(NL_BUFSIZ);
 	int file = open(fname, O_RDONLY);
 	if (file == -1) {
 		perror("ls_file_read open()");
 		return NULL;
 	}
 
-	nl_read(buf, file);
-
-	return buf;
+	return nl_readfile(file);
 }
 
 static void walk_dir(char *name, struct nl_hash_tbl *files)

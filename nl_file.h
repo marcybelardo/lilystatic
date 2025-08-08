@@ -7,7 +7,7 @@
  * Read contents of fd into buf. Automatically resizes the buffer
  * to fit the contents of the file.
  */
-void nl_read(char *buf, int fd);
+char *nl_readfile(int fd);
 
 #endif // NL_FILE_H
 
@@ -17,27 +17,27 @@ void nl_read(char *buf, int fd);
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
-void nl_read(char *buf, int fd)
+char *nl_readfile(int fd)
 {
-	ssize_t n;
-	char *str = NULL;
-	size_t len = 0;
+	struct stat sb;
+	int rc = fstat(fd, &sb);
+	if (rc < 0)
+		return NULL;
 
-	while ((n = read(fd, buf, sizeof(buf)))) {
-		if (n < 0) {
-			if (errno == EAGAIN)
-				continue;
-			perror("nl_read read()");
-			break;
-		}
+	char *data = (char *)calloc(1, sb.st_size + 1);
+	if (!data)
+		return NULL;
 
-		str = (char *)realloc(str, len + n + 1);
-		memcpy(str + len, buf, n);
-		len += n;
-		str[len] = '\0';
+	ssize_t bytes_read = pread(fd, data, sb.st_size, (off_t)0);
+	if (bytes_read < 0) {
+		perror("nl_readfile pread()");
+		return NULL;
 	}
+
+	return data;
 }
 
 #endif // NL_FILE_IMPL
