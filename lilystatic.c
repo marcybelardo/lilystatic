@@ -1,9 +1,14 @@
 #include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#define NL_HASH_TBL_IMPL
+#include "./nl_hash_tbl.h"
+#define NL_FILE_IMPL
+#include "./nl_file.h"
 
 #define PATH_MAX_LEN 1024 // how long are your paths??
 
@@ -28,77 +33,28 @@ static const char version[] = "0.0.1";
  *
  * Parsing logic:
  *     - For a given router root ("./pages"), we must load the page from within
- *     - the router root is a directory, a directory contains files or other directories
  */
 
-enum ls_kind {
-	LS_REG,
-	LS_DIR
-};
-
-struct ls_reg {
-	char *name;
-	char *contents;
-};
-
-struct ls_dir {
-	char *name;
-	struct ls_file *head;
-};
-
-struct ls_file {
-	struct ls_file *next;
-	enum ls_kind kind;
-	union {
-		struct ls_reg *reg;
-		struct ls_dir *dir;
-	};
-};
-
-struct ls_dir *ls_dir_init(char *name)
+static char *ls_file_read(char *fname)
 {
-	struct ls_dir *newdir = malloc(sizeof(struct ls_dir));
-	newdir->name = name;
-	newdir->head = NULL;
+	char *buf = malloc(NL_BUFSIZ);
+	int file = open(fname, O_RDONLY);
+	if (file == -1) {
+		perror("ls_file_read open()");
+		return NULL;
+	}
 
-	return newdir;
+	nl_read(buf, file);
+
+	return buf;
 }
 
-struct ls_file *ls_file_init_reg(char *name)
-{
-	struct ls_file *newfile = malloc(sizeof(struct ls_file));
-	newfile->kind = LS_REG;
-	newfile->reg->name = name;
-	newfile->reg->contents = NULL;
-	newfile->next = NULL;
-
-	return newfile;
-}
-
-struct ls_file *ls_file_init_dir(char *name)
-{
-	struct ls_file *newfile = malloc(sizeof(struct ls_file));
-	newfile->kind = LS_DIR;
-	newfile->dir->name = name;
-	newfile->dir->head = NULL;
-	newfile->next = NULL;
-
-	return newfile;
-}
-
-void ls_dir_append(struct ls_dir *dir, struct ls_file *file)
-{
-	struct ls_file *p;
-	for (p = dir->head; p->next; p = p->next);
-	p->next = file;
-}
-
-static void walk_dir(struct ls_dir *dir)
+static void walk_dir(char *name, struct nl_hash_tbl *files)
 {
 	DIR *dstream;
 	struct dirent *dentry;
 
-	dstream = opendir(dir->name);
+	dstream = opendir(name);
 	if (!dstream) {
 		perror("walk_dir opendir");
 		return;
@@ -109,7 +65,7 @@ static void walk_dir(struct ls_dir *dir)
 			continue;
 
 		char path[PATH_MAX_LEN];
-		snprintf(path, sizeof(path), "%s/%s", dir->name, dentry->d_name);
+		snprintf(path, sizeof(path), "%s/%s", name, dentry->d_name);
 		
 		struct stat sb;
 		if (stat(path, &sb) != 0) {
@@ -118,11 +74,11 @@ static void walk_dir(struct ls_dir *dir)
 		}
 
 		if (S_ISDIR(sb.st_mode)) {
-			struct ls_dir *innerdir = ls_dir_init(path);
-			walk_dir(innerdir);
+			walk_dir(path, files);
 		} else {
 			printf("%s\n", path);
-			struct ls_file *
+			char *file_contents = ls_file_read(path);
+			nl_hash_tbl_insert(files, path, file_contents);
 		}
 	}
 }
@@ -138,8 +94,8 @@ int main(int argc, char *argv[])
 	char *name = argv[1];
 
 	printf("root: %s\n", name);
-	struct ls_dir *root = ls_dir_init(name);
-	walk_dir(root);
+	struct nl_hash_tbl *files = nl_hash_tbl_new();
+	walk_dir(name, files);
 
 	return 0;
 }
