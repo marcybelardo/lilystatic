@@ -15,8 +15,8 @@
 static const char pkg_name[] = "lilystatic";
 static const char version[] = "0.0.1";
 
-// static char *router_dir_name = "./pages";
-// static char *templates_dir_name = "./templates";
+static char *router_dir_name = "./pages";
+static char *templates_dir_name = "./templates";
 
 /*
  * How we're structuring Lilystatic:
@@ -80,19 +80,19 @@ static void walk_dir(char *name, struct nl_hash_tbl *files)
 	}
 }
 
+static void html_page_generate(char *file, char *template)
+{
+	printf("%s%s\n", file, template);
+}
+
 int main(int argc, char *argv[])
 {
-	if (argc != 2) {
-		fprintf(stderr, "%s v%s\n"
-				"USAGE: %s [dirname]",
-				pkg_name, version, argv[0]);
-		return 1;
-	}
-	char *name = argv[1];
+	printf("%s v%s\n\n", pkg_name, version);
 
-	printf("root: %s\n", name);
 	struct nl_hash_tbl *files = nl_hash_tbl_new();
-	walk_dir(name, files);
+	struct nl_hash_tbl *templates = nl_hash_tbl_new();
+	walk_dir(router_dir_name, files);
+	walk_dir(templates_dir_name, templates);
 
 	return 0;
 }
